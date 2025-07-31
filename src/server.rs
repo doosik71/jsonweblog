@@ -1,4 +1,4 @@
-use crate::{ui::get_static_file, JsonLogParser, LogEntry, LogFilter, LogLevel};
+use crate::{ui::get_static_file, JsonLogParser, LogEntry, LogFilter, LogLevel, schema::{Schema, TableConfig, ColumnConfig}};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -17,7 +17,7 @@ use std::sync::{
 };
 use tokio::{
     sync::{broadcast, RwLock},
-    time::{interval, Duration},
+    // time::{interval, Duration},
 };
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
@@ -28,16 +28,26 @@ pub struct AppState {
     pub logs: Arc<RwLock<Vec<LogEntry>>>,
     pub log_tx: broadcast::Sender<LogEntry>,
     pub connection_count: Arc<AtomicU64>,
+    pub schema: Arc<RwLock<Schema>>,
+    pub table_config: Arc<RwLock<Option<TableConfig>>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         let (log_tx, _) = broadcast::channel(1000);
         
+        // Try to load existing table configuration
+        let settings_path = TableConfig::get_settings_path();
+        let table_config = TableConfig::load_from_file(&settings_path)
+            .map(Some)
+            .unwrap_or(None);
+        
         Self {
             logs: Arc::new(RwLock::new(Vec::new())),
             log_tx,
             connection_count: Arc::new(AtomicU64::new(0)),
+            schema: Arc::new(RwLock::new(Schema::new())),
+            table_config: Arc::new(RwLock::new(table_config)),
         }
     }
 
@@ -53,9 +63,24 @@ impl AppState {
             }
         }
         
+        // Initialize schema from first entry
+        {
+            let mut schema = self.schema.write().await;
+            schema.initialize_from_first_entry(&entry.raw_fields);
+            
+            // Auto-generate table config if none exists
+            if self.table_config.read().await.is_none() && schema.initialized {
+                let default_columns = schema.get_default_columns();
+                let config = TableConfig {
+                    columns: default_columns,
+                };
+                *self.table_config.write().await = Some(config);
+            }
+        }
+        
         // Broadcast to all connected clients
-        if let Err(e) = self.log_tx.send(entry) {
-            warn!("Failed to broadcast log entry: {}", e);
+        if let Err(_e) = self.log_tx.send(entry) {
+            // warn!("Failed to broadcast log entry: {}", e);
         }
     }
 
@@ -120,7 +145,7 @@ impl WebServer {
         // Try to find an available port starting from the requested port
         let actual_port = self.find_available_port().await?;
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", actual_port)).await?;
-        info!("Web server listening on http://0.0.0.0:{}", actual_port);
+        // info!("Web server listening on http://0.0.0.0:{}", actual_port);
         info!("Web interface available at http://localhost:{}", actual_port);
         
         // Start stdin parser task
@@ -129,11 +154,11 @@ impl WebServer {
             Self::stdin_parser_task(parser_state).await;
         });
 
-        // Start stats task
-        let stats_state = self.state.clone();
-        tokio::spawn(async move {
-            Self::stats_task(stats_state).await;
-        });
+        // // Start stats task
+        // let stats_state = self.state.clone();
+        // tokio::spawn(async move {
+        //     Self::stats_task(stats_state).await;
+        // });
 
         axum::serve(listener, app).await?;
         
@@ -201,6 +226,9 @@ impl WebServer {
             .route("/api/logs", get(get_logs_handler))
             .route("/api/logs/clear", axum::routing::post(clear_logs_handler))
             .route("/api/stats", get(get_stats_handler))
+            .route("/api/schema", get(get_schema_handler))
+            .route("/api/schema/columns", get(get_columns_handler))
+            .route("/api/schema/columns", axum::routing::post(set_columns_handler))
             // WebSocket route
             .route("/ws", any(websocket_handler))
             // Catch-all for static files
@@ -216,7 +244,7 @@ impl WebServer {
         let mut parser = JsonLogParser::new();
         let mut stream = parser.parse_stdin().await;
         
-        info!("Started stdin parser task");
+        // info!("Started stdin parser task");
         
         while let Some(result) = stream.next().await {
             match result {
@@ -229,21 +257,21 @@ impl WebServer {
             }
         }
         
-        info!("Stdin parser task ended");
+        // info!("Stdin parser task ended");
     }
 
-    async fn stats_task(state: AppState) {
-        let mut interval = interval(Duration::from_secs(30));
+    // async fn stats_task(state: AppState) {
+    //     let mut interval = interval(Duration::from_secs(30));
         
-        loop {
-            interval.tick().await;
+    //     loop {
+    //         interval.tick().await;
             
-            let log_count = state.logs.read().await.len();
-            let connection_count = state.connection_count.load(Ordering::Relaxed);
+    //         let _log_count = state.logs.read().await.len();
+    //         let _connection_count = state.connection_count.load(Ordering::Relaxed);
             
-            info!("Stats: {} logs, {} connections", log_count, connection_count);
-        }
-    }
+    //         // info!("Stats: {} logs, {} connections", log_count, connection_count);
+    //     }
+    // }
 }
 
 // Static file handlers
@@ -361,8 +389,8 @@ async fn websocket_handler(
 }
 
 async fn websocket_connection(socket: WebSocket, state: AppState) {
-    let connection_id = state.connection_count.fetch_add(1, Ordering::Relaxed) + 1;
-    info!("WebSocket connection {} established", connection_id);
+    // let connection_id = state.connection_count.fetch_add(1, Ordering::Relaxed) + 1;
+    // info!("WebSocket connection {} established", connection_id);
     
     let (mut sender, mut receiver) = socket.split();
     let mut log_rx = state.log_tx.subscribe();
@@ -370,7 +398,7 @@ async fn websocket_connection(socket: WebSocket, state: AppState) {
     // Send existing logs to the new client
     tokio::spawn(async move {
         let logs = state.logs.read().await;
-        let recent_logs = logs.iter().rev().take(1000).rev().cloned().collect::<Vec<_>>();
+        let recent_logs = logs.iter().rev().take(100_000).rev().cloned().collect::<Vec<_>>();
         drop(logs);
         
         for log_entry in recent_logs {
@@ -409,5 +437,43 @@ async fn websocket_connection(socket: WebSocket, state: AppState) {
     }
     
     state.connection_count.fetch_sub(1, Ordering::Relaxed);
-    info!("WebSocket connection {} closed", connection_id);
+    // info!("WebSocket connection {} closed", connection_id);
+}
+
+// Schema API handlers
+async fn get_schema_handler(State(state): State<AppState>) -> Json<Schema> {
+    let schema = state.schema.read().await;
+    Json(schema.clone())
+}
+
+async fn get_columns_handler(State(state): State<AppState>) -> Json<Option<TableConfig>> {
+    let config = state.table_config.read().await;
+    Json(config.clone())
+}
+
+#[derive(Debug, Deserialize)]
+struct SetColumnsRequest {
+    columns: Vec<ColumnConfig>,
+}
+
+async fn set_columns_handler(
+    State(state): State<AppState>,
+    Json(request): Json<SetColumnsRequest>,
+) -> Json<TableConfig> {
+    let config = TableConfig {
+        columns: request.columns,
+    };
+    
+    // Save to file
+    let settings_path = TableConfig::get_settings_path();
+    if let Err(e) = config.save_to_file(&settings_path) {
+        warn!("Failed to save table configuration: {}", e);
+    } else {
+        info!("Saved table configuration to {:?}", settings_path);
+    }
+    
+    *state.table_config.write().await = Some(config.clone());
+    info!("Updated table configuration with {} columns", config.columns.len());
+    
+    Json(config)
 }

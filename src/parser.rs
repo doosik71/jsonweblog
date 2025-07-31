@@ -47,42 +47,23 @@ impl JsonLogParser {
 
     fn extract_log_entry(
         &self,
-        mut obj: serde_json::Map<String, Value>,
+        obj: serde_json::Map<String, Value>,
         line_number: u64,
     ) -> Result<LogEntry> {
-        // Extract timestamp
-        let timestamp = self.extract_timestamp(&obj)?;
+        // Store all raw fields for dynamic schema detection
+        let raw_fields: HashMap<String, Value> = obj.clone().into_iter().collect();
 
-        // Extract level
+        // Try to extract common fields with fallbacks, but don't assume they exist
+        let timestamp = self.extract_timestamp(&obj).unwrap_or_else(|_| Utc::now());
         let level = self.extract_level(&obj);
-
-        // Extract logger/name
-        let logger = self.extract_string_field(&obj, &["logger", "name", "category"])
+        let logger = self.extract_string_field(&obj, &["logger", "logger_name", "name", "category", "component"])
             .unwrap_or_else(|| "unknown".to_string());
-
-        // Extract message
-        let message = self.extract_string_field(&obj, &["message", "msg", "text"])
+        let message = self.extract_string_field(&obj, &["message", "msg", "text", "description", "content"])
             .unwrap_or_else(|| "".to_string());
 
-        // Extract optional fields
-        let module = self.extract_string_field(&obj, &["module", "mod", "component"]);
-        let function = self.extract_string_field(&obj, &["function", "func", "method"]);
-
-        // Remove extracted fields from raw_fields
-        let extracted_keys = [
-            "timestamp", "time", "ts", "@timestamp",
-            "level", "lvl", "severity",
-            "logger", "name", "category",
-            "message", "msg", "text",
-            "module", "mod", "component",
-            "function", "func", "method",
-        ];
-
-        for key in &extracted_keys {
-            obj.remove(*key);
-        }
-
-        let raw_fields: HashMap<String, Value> = obj.into_iter().collect();
+        // Extract optional fields with expanded search
+        let module = self.extract_string_field(&obj, &["module", "mod", "component", "file", "filename"]);
+        let function = self.extract_string_field(&obj, &["function", "func", "method", "procedure"]);
 
         let mut entry = LogEntry::new(line_number, timestamp, level, logger, message);
         
@@ -94,13 +75,14 @@ impl JsonLogParser {
             entry = entry.with_function(function);
         }
         
+        // Store all raw fields for dynamic field extraction
         entry = entry.with_raw_fields(raw_fields);
 
         Ok(entry)
     }
 
     fn extract_timestamp(&self, obj: &serde_json::Map<String, Value>) -> Result<DateTime<Utc>> {
-        let timestamp_keys = ["timestamp", "time", "ts", "@timestamp"];
+        let timestamp_keys = ["timestamp", "time", "ts", "@timestamp", "datetime", "created_at"];
         
         for key in &timestamp_keys {
             if let Some(value) = obj.get(*key) {
@@ -108,8 +90,8 @@ impl JsonLogParser {
             }
         }
 
-        // If no timestamp found, use current time
-        Ok(Utc::now())
+        // If no timestamp found, return error (caller will use current time)
+        Err(anyhow!("No timestamp field found"))
     }
 
     fn parse_timestamp(&self, value: &Value) -> Result<DateTime<Utc>> {
@@ -159,7 +141,7 @@ impl JsonLogParser {
     }
 
     fn extract_level(&self, obj: &serde_json::Map<String, Value>) -> LogLevel {
-        let level_keys = ["level", "lvl", "severity"];
+        let level_keys = ["level", "lvl", "severity", "priority", "log_level"];
         
         for key in &level_keys {
             if let Some(value) = obj.get(*key) {
