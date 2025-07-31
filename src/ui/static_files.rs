@@ -47,6 +47,14 @@ const HTML_INDEX: &str = r#"<!DOCTYPE html>
         <header class="header">
             <h1>JsonWebLog</h1>
             <div class="header-controls">
+                <div class="theme-selector">
+                    <select id="theme-selector" class="btn btn-secondary">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="solarized-dark">Solarized Dark</option>
+                        <option value="monokai-pro">Monokai Pro</option>
+                    </select>
+                </div>
                 <button id="columns-btn" class="btn btn-secondary">컬럼 설정</button>
                 <button id="clear-btn" class="btn btn-danger">지우기</button>
             </div>
@@ -113,7 +121,159 @@ const HTML_INDEX: &str = r#"<!DOCTYPE html>
 </body>
 </html>"#;
 
-const CSS_STYLES: &str = r#"* {
+const CSS_STYLES: &str = r#"/* --- THEME DEFINITIONS --- */
+:root,
+html[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #252525;
+    --bg-tertiary: #303030;
+    --bg-header: #2d2d2d;
+    --bg-panel: #2d2d2d;
+    --bg-panel-header: #383838;
+    --bg-input: #1a1a1a;
+    --bg-row-hover: #2a2a2a;
+
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-accent: #61dafb;
+    --text-inverted: #1a1a1a;
+
+    --border-primary: #404040;
+    --border-secondary: #333;
+    --border-accent: #61dafb;
+    --border-resizer: rgba(255, 255, 255, 0.15);
+    --border-resizer-hover: rgba(97, 218, 251, 0.25);
+
+    --btn-secondary-bg: #404040;
+    --btn-secondary-bg-hover: #505050;
+    --btn-secondary-text: #e0e0e0;
+    --btn-danger-bg: #dc3545;
+    --btn-danger-bg-hover: #c82333;
+    --btn-danger-text: white;
+    --btn-primary-bg: #61dafb;
+    --btn-primary-bg-hover: #4fa8c5;
+    --btn-primary-text: #1a1a1a;
+
+    --level-trace: #6B7280;
+    --level-debug: #3B82F6;
+    --level-info: #10B981;
+    --level-warn: #F59E0B;
+    --level-error: #EF4444;
+    --level-fatal: #DC2626;
+}
+
+html[data-theme="light"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --bg-header: #f8f9fa;
+    --bg-panel: #ffffff;
+    --bg-panel-header: #f1f3f5;
+    --bg-input: #ffffff;
+    --bg-row-hover: #e9ecef;
+
+    --text-primary: #212529;
+    --text-secondary: #495057;
+    --text-accent: #007bff;
+    --text-inverted: #ffffff;
+
+    --border-primary: #dee2e6;
+    --border-secondary: #e9ecef;
+    --border-accent: #007bff;
+    --border-resizer: rgba(0, 0, 0, 0.15);
+    --border-resizer-hover: rgba(0, 123, 255, 0.25);
+
+    --btn-secondary-bg: #e9ecef;
+    --btn-secondary-bg-hover: #d3d9df;
+    --btn-secondary-text: #212529;
+    --btn-danger-bg: #dc3545;
+    --btn-danger-bg-hover: #c82333;
+    --btn-danger-text: white;
+    --btn-primary-bg: #007bff;
+    --btn-primary-bg-hover: #0069d9;
+    --btn-primary-text: #ffffff;
+}
+
+html[data-theme="solarized-dark"] {
+    --bg-primary: #002b36;
+    --bg-secondary: #073642;
+    --bg-tertiary: #586e75;
+    --bg-header: #073642;
+    --bg-panel: #002b36;
+    --bg-panel-header: #073642;
+    --bg-input: #002b36;
+    --bg-row-hover: #073642;
+
+    --text-primary: #839496;
+    --text-secondary: #586e75;
+    --text-accent: #268bd2;
+    --text-inverted: #002b36;
+
+    --border-primary: #073642;
+    --border-secondary: #586e75;
+    --border-accent: #268bd2;
+    --border-resizer: rgba(88, 110, 117, 0.5);
+    --border-resizer-hover: rgba(38, 139, 210, 0.5);
+
+    --btn-secondary-bg: #586e75;
+    --btn-secondary-bg-hover: #657b83;
+    --btn-secondary-text: #002b36;
+    --btn-danger-bg: #dc322f;
+    --btn-danger-bg-hover: #cb4b16;
+    --btn-danger-text: #fdf6e3;
+    --btn-primary-bg: #268bd2;
+    --btn-primary-bg-hover: #2aa198;
+    --btn-primary-text: #fdf6e3;
+
+    --level-trace: #586e75;
+    --level-debug: #268bd2;
+    --level-info: #859900;
+    --level-warn: #b58900;
+    --level-error: #dc322f;
+    --level-fatal: #d33682;
+}
+
+html[data-theme="monokai-pro"] {
+    --bg-primary: #2D2A2E;
+    --bg-secondary: #3E3B3F;
+    --bg-tertiary: #4E4A4F;
+    --bg-header: #3E3B3F;
+    --bg-panel: #2D2A2E;
+    --bg-panel-header: #3E3B3F;
+    --bg-input: #2D2A2E;
+    --bg-row-hover: #4E4A4F;
+
+    --text-primary: #FCFCFA;
+    --text-secondary: #727072;
+    --text-accent: #FFD866;
+    --text-inverted: #2D2A2E;
+
+    --border-primary: #4E4A4F;
+    --border-secondary: #727072;
+    --border-accent: #FFD866;
+    --border-resizer: rgba(114, 112, 114, 0.5);
+    --border-resizer-hover: rgba(255, 216, 102, 0.5);
+
+    --btn-secondary-bg: #4E4A4F;
+    --btn-secondary-bg-hover: #727072;
+    --btn-secondary-text: #FCFCFA;
+    --btn-danger-bg: #FF6188;
+    --btn-danger-bg-hover: #fc7ca0;
+    --btn-danger-text: #2D2A2E;
+    --btn-primary-bg: #FFD866;
+    --btn-primary-bg-hover: #ffe187;
+    --btn-primary-text: #2D2A2E;
+
+    --level-trace: #727072;
+    --level-debug: #AB9DF2;
+    --level-info: #A9DC76;
+    --level-warn: #FFD866;
+    --level-error: #FF6188;
+    --level-fatal: #FF6188;
+}
+
+/* --- BASE STYLES --- */
+* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -121,11 +281,12 @@ const CSS_STYLES: &str = r#"* {
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #1a1a1a;
-    color: #e0e0e0;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     line-height: 1.4;
     height: 100vh;
     overflow: hidden; /* Prevent body scroll */
+    transition: background-color 0.2s, color 0.2s;
 }
 
 #app {
@@ -135,23 +296,26 @@ body {
 }
 
 .header {
-    background-color: #2d2d2d;
+    background-color: var(--bg-header);
     padding: 1rem 2rem;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: background-color 0.2s, border-bottom 0.2s;
 }
 
 .header h1 {
-    color: #61dafb;
+    color: var(--text-accent);
     font-size: 1.5rem;
     font-weight: 600;
+    transition: color 0.2s;
 }
 
 .header-controls {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
 }
 
 .btn {
@@ -161,35 +325,36 @@ body {
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .btn-secondary {
-    background-color: #404040;
-    color: #e0e0e0;
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
 }
 
 .btn-secondary:hover {
-    background-color: #505050;
+    background-color: var(--btn-secondary-bg-hover);
 }
 
 .btn-danger {
-    background-color: #dc3545;
-    color: white;
+    background-color: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
 }
 
 .btn-danger:hover {
-    background-color: #c82333;
+    background-color: var(--btn-danger-bg-hover);
 }
 
 .filter-panel {
-    background-color: #252525;
+    background-color: var(--bg-secondary);
     padding: 1rem 2rem;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     gap: 1.5rem;
     flex-wrap: wrap;
     align-items: end;
+    transition: background-color 0.2s, border-bottom 0.2s;
 }
 
 .filter-group {
@@ -201,19 +366,20 @@ body {
 .filter-group input,
 .filter-group select {
     padding: 0.5rem;
-    border: 1px solid #404040;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background-color: #1a1a1a;
-    color: #e0e0e0;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
     font-size: 0.875rem;
     min-width: 150px;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .filter-group input:focus,
 .filter-group select:focus {
     outline: none;
-    border-color: #61dafb;
-    box-shadow: 0 0 0 1px #61dafb;
+    border-color: var(--border-accent);
+    box-shadow: 0 0 0 1px var(--border-accent);
 }
 
 .log-container {
@@ -233,8 +399,9 @@ body {
 
 .log-table-header {
     flex-shrink: 0;
-    background-color: #2d2d2d;
-    border-bottom: 2px solid #404040;
+    background-color: var(--bg-header);
+    border-bottom: 2px solid var(--border-primary);
+    transition: background-color 0.2s, border-bottom-color 0.2s;
 }
 
 .log-header-row {
@@ -264,25 +431,19 @@ body {
 .virtual-log-row {
     display: flex;
     min-height: 40px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border-secondary);
     align-items: center;
+    transition: background-color 0.2s, border-bottom-color 0.2s;
 }
 
 .virtual-log-row:hover {
-    background-color: #2a2a2a;
+    background-color: var(--bg-row-hover);
 }
 
-
-.log-table-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
 
 .log-table-header {
-    background-color: #2d2d2d;
-    border-bottom: 1px solid #404040;
+    background-color: var(--bg-header);
+    border-bottom: 1px solid var(--border-primary);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -290,7 +451,7 @@ body {
 
 .log-header-row {
     display: flex;
-    color: #e0e0e0;
+    color: var(--text-primary);
     font-size: 0.875rem;
     font-weight: 600;
 }
@@ -298,7 +459,7 @@ body {
 .log-header-row > div {
     padding: 0.75rem 0.5rem;
     text-align: left;
-    border-right: 1px solid #404040;
+    border-right: 1px solid var(--border-primary);
 }
 
 .virtual-scroll-container {
@@ -333,72 +494,37 @@ body {
 .virtual-log-row {
     display: flex;
     font-size: 0.875rem;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border-secondary);
     height: 2.5rem;
     align-items: center;
     position: relative;
     width: 100%;
-    background-color: #1a1a1a;
+    background-color: var(--bg-primary);
     box-sizing: border-box;
 }
 
 .virtual-log-row:hover {
-    background-color: #2a2a2a;
+    background-color: var(--bg-row-hover);
 }
 
 .virtual-log-row > div {
     padding: 0.5rem;
-    border-right: 1px solid #333;
+    border-right: 1px solid var(--border-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.col-line {
-    width: 60px;
-    text-align: center;
-}
-
-.col-time {
-    width: 100px;
-    font-family: 'Courier New', monospace;
-}
-
-.col-level {
-    width: 80px;
-    text-align: center;
-}
-
-.col-logger {
-    width: 120px;
-}
-
-.col-message {
-    min-width: 300px;
-}
-
-.col-module {
-    width: 120px;
-}
-
-.col-function {
-    width: 120px;
-}
-
-.level-trace { color: #6B7280; }
-.level-debug { color: #3B82F6; }
-.level-info { color: #10B981; }
-.level-warn { color: #F59E0B; }
-.level-error { color: #EF4444; }
-.level-fatal { color: #DC2626; font-weight: bold; }
-
-.log-message {
-    word-break: break-word;
-}
+.level-trace { color: var(--level-trace); }
+.level-debug { color: var(--level-debug); }
+.level-info { color: var(--level-info); }
+.level-warn { color: var(--level-warn); }
+.level-error { color: var(--level-error); }
+.level-fatal { color: var(--level-fatal); font-weight: bold; }
 
 .log-time {
     font-family: 'Courier New', monospace;
-    color: #b0b0b0;
+    color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {
@@ -434,25 +560,27 @@ body {
     right: 0;
     width: 400px;
     height: 100vh;
-    background-color: #2d2d2d;
-    border-left: 1px solid #404040;
+    background-color: var(--bg-panel);
+    border-left: 1px solid var(--border-primary);
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
     z-index: 1000;
     display: flex;
     flex-direction: column;
+    transition: background-color 0.2s, border-left-color 0.2s;
 }
 
 .config-header {
     padding: 1rem;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #383838;
+    background-color: var(--bg-panel-header);
+    transition: background-color 0.2s, border-bottom-color 0.2s;
 }
 
 .config-header h3 {
-    color: #61dafb;
+    color: var(--text-accent);
     font-size: 1.2rem;
     margin: 0;
 }
@@ -460,7 +588,7 @@ body {
 .btn-close {
     background: none;
     border: none;
-    color: #b0b0b0;
+    color: var(--text-secondary);
     font-size: 1.5rem;
     cursor: pointer;
     padding: 0.25rem;
@@ -469,8 +597,8 @@ body {
 }
 
 .btn-close:hover {
-    background-color: #505050;
-    color: #e0e0e0;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 .config-content {
@@ -483,16 +611,15 @@ body {
 }
 
 .config-section h4 {
-    color: #b0b0b0;
+    color: var(--text-secondary);
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.75rem;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid var(--border-primary);
     padding-bottom: 0.5rem;
 }
 
-.field-list,
 .column-list {
     display: flex;
     flex-direction: column;
@@ -502,121 +629,69 @@ body {
     max-height: calc(100vh - 200px);
     overflow-y: auto;
     padding: 0.5rem;
-    border: 1px solid #404040;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background-color: #1a1a1a;
+    background-color: var(--bg-primary);
 }
 
-.field-item,
-.column-item {
+.column-visibility-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.5rem;
+    padding: 0.75rem;
     border-radius: 4px;
-    background-color: #252525;
-    border: 1px solid #404040;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
     transition: all 0.2s;
 }
 
-.field-item:hover,
-.column-item:hover {
-    background-color: #303030;
-    border-color: #505050;
+.column-visibility-item:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-secondary);
 }
 
-.field-item input[type="checkbox"] {
+.column-visibility-item input[type="checkbox"] {
     margin: 0;
 }
 
-.field-info {
+.column-info {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.field-name {
-    font-weight: 500;
-    color: #e0e0e0;
-}
-
-.field-details {
-    font-size: 0.75rem;
-    color: #b0b0b0;
-    display: flex;
-    gap: 1rem;
-}
-
-.field-type {
-    color: #61dafb;
-    font-weight: 500;
-}
-
-.column-item {
     justify-content: space-between;
-    cursor: grab;
-}
-
-.column-item:active {
-    cursor: grabbing;
-}
-
-.column-controls {
-    display: flex;
-    gap: 0.5rem;
     align-items: center;
 }
 
-.btn-small {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
+.column-name {
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
-.btn-remove {
-    background-color: #dc3545;
-    color: white;
-}
-
-.btn-remove:hover {
-    background-color: #c82333;
-}
-
-.drag-handle {
-    color: #b0b0b0;
-    cursor: grab;
-    padding: 0.25rem;
-}
-
-.drag-handle:hover {
-    color: #61dafb;
+.column-width {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
 }
 
 .config-actions {
     display: flex;
     gap: 0.75rem;
     padding-top: 1rem;
-    border-top: 1px solid #404040;
+    border-top: 1px solid var(--border-primary);
     margin-top: auto;
 }
 
 .btn-primary {
-    background-color: #61dafb;
-    color: #1a1a1a;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
     font-weight: 500;
 }
 
 .btn-primary:hover {
-    background-color: #4fa8c5;
+    background-color: var(--btn-primary-bg-hover);
 }
 
 .loading {
     text-align: center;
-    color: #b0b0b0;
+    color: var(--text-secondary);
     padding: 2rem;
     font-style: italic;
 }
@@ -625,7 +700,7 @@ body {
 .dynamic-column {
     flex: 0 0 auto;
     padding: 0.5rem;
-    border-right: 1px solid #404040;
+    border-right: 1px solid var(--border-primary);
     word-break: break-word;
     position: relative;
 }
@@ -643,82 +718,41 @@ body {
 
 .column-resizer {
     position: absolute;
-    right: -2px;
+    right: 0;
     top: 0;
-    width: 4px;
+    width: 6px; /* Make it easier to grab */
     height: 100%;
     cursor: col-resize;
     background-color: transparent;
     transition: background-color 0.2s;
     z-index: 10;
+    border-right: 2px dotted var(--border-resizer);
 }
 
 .column-resizer:hover {
-    background-color: #61dafb;
+    background-color: var(--border-resizer-hover);
 }
 
 .column-resizer.resizing {
-    background-color: #61dafb;
+    background-color: var(--border-accent);
+}
+
+/* Styles for header drag & drop */
+.dynamic-column.dragging {
+    opacity: 0.5;
+    background-color: var(--bg-tertiary);
+}
+
+.dynamic-column.drag-over {
+    border-left: 2px solid var(--border-accent);
 }
 
 /* Column visibility styles */
-.column-visibility-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    border-radius: 4px;
-    background-color: #252525;
-    border: 1px solid #404040;
-    transition: all 0.2s;
-}
-
 .column-visibility-item:hover {
-    background-color: #303030;
-    border-color: #505050;
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-secondary);
 }
-
-.column-visibility-item input[type="checkbox"] {
-    margin: 0;
-}
-
-.column-info {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.column-name {
-    font-weight: 500;
-    color: #e0e0e0;
-}
-
-.column-width {
-    font-size: 0.875rem;
-    color: #b0b0b0;
-}
-
-/* Drag and drop styles */
-.column-visibility-item[draggable="true"] {
-    cursor: move;
-}
-
-.column-visibility-item:hover {
-    background-color: #303030;
-    border-color: #505050;
-}
-
-.column-visibility-item.dragging {
-    opacity: 0.5;
-    transform: scale(1.02);
-}
-
-.column-visibility-item.drag-over {
-    border-color: #61dafb;
-    background-color: #2a4a5a;
-}
-}"#;
+"#;
 
 const JS_APP: &str = r#"class JsonWebLogApp {
         constructor() {
@@ -732,6 +766,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.scrollUpdateQueued = false; // Flag for requestAnimationFrame
+        this.currentTheme = 'dark'; // Default theme
         
         // Column configuration
         this.columns = []; // Simple list of column configs from server
@@ -755,7 +790,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.setupEventListeners();
         this.setupVirtualScrolling();
         this.connectWebSocket();
-        this.initializeColumns();
+        this.initializeSettings();
     }
 
     initializeElements() {
@@ -765,6 +800,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             clearFiltersBtn: document.getElementById('clear-filters-btn'),
             clearBtn: document.getElementById('clear-btn'),
             columnsBtn: document.getElementById('columns-btn'),
+            themeSelector: document.getElementById('theme-selector'),
             columnConfigPanel: document.getElementById('column-config-panel'),
             closeConfigBtn: document.getElementById('close-config-btn'),
             columnVisibilityList: document.getElementById('column-visibility-list'),
@@ -788,11 +824,19 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.elements.clearFiltersBtn.addEventListener('click', () => this.clearFilters());
         this.elements.clearBtn.addEventListener('click', () => this.clearLogs());
         this.elements.columnsBtn.addEventListener('click', () => this.showColumnConfig());
+        this.elements.themeSelector.addEventListener('change', (e) => this.applyTheme(e.target.value));
         
         // Column configuration event listeners
         this.elements.closeConfigBtn.addEventListener('click', () => this.hideColumnConfig());
         this.elements.applyColumnsBtn.addEventListener('click', () => this.applyColumnConfiguration());
         this.elements.showAllBtn.addEventListener('click', () => this.showAllColumns());
+
+        // Global keydown listener for ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isConfigPanelOpen) {
+                this.hideColumnConfig();
+            }
+        });
     }
 
     setupVirtualScrolling() {
@@ -1152,19 +1196,25 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         }
     }
 
-    async initializeColumns() {
-        // Load initial column configuration
+    async initializeSettings() {
+        // Load initial configuration for columns and theme
         try {
             const response = await fetch('/api/schema/columns');
+            if (!response.ok) return;
+
             const tableConfig = await response.json();
             
-            if (tableConfig && tableConfig.columns) {
-                this.columns = tableConfig.columns;
-                this.renderTableHeaders();
+            if (tableConfig) {
+                if (tableConfig.columns) {
+                    this.columns = tableConfig.columns;
+                    this.renderTableHeaders();
+                }
+                if (tableConfig.theme) {
+                    this.applyTheme(tableConfig.theme, false); // Apply theme without saving
+                }
             }
         } catch (error) {
-            console.error('Failed to initialize columns:', error);
-            // Will get columns from first log entry
+            console.error('Failed to initialize settings:', error);
         }
     }
 
@@ -1191,8 +1241,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         const html = sortedColumns.map((column, index) => {
             const originalIndex = this.columns.indexOf(column);
             return `
-                <div class="column-visibility-item" draggable="true" data-column-index="${originalIndex}">
-                    <div class="drag-handle">⋮⋮</div>
+                <div class="column-visibility-item" data-column-index="${originalIndex}">
                     <input type="checkbox" id="col-${originalIndex}" ${column.visible ? 'checked' : ''} 
                            onchange="app.toggleColumnVisibility(${originalIndex}, this.checked)">
                     <div class="column-info">
@@ -1252,7 +1301,10 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             .filter(col => col.visible);
             
         const html = visibleColumns.map((column, index) => `
-            <div class="dynamic-column" style="width: ${column.width}px; flex: 0 0 ${column.width}px;">
+            <div class="dynamic-column" 
+                 style="width: ${column.width}px; flex: 0 0 ${column.width}px;" 
+                 draggable="true" 
+                 data-field-name="${column.field_name}">
                 <div class="column-header">
                     ${column.field_name}
                     ${index < visibleColumns.length - 1 ? '<div class="column-resizer" data-column="' + index + '"></div>' : ''}
@@ -1262,6 +1314,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         
         this.elements.logHeaderRow.innerHTML = html;
         this.setupColumnResizers();
+        this.setupHeaderDragAndDrop(); // Add this call
         this.updateFilterColumnOptions();
     }
 
@@ -1327,90 +1380,111 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         }
         
         // Auto-save column configuration after resize
-        this.saveColumnConfiguration();
+        this.saveSettings();
         
         this.resizing = null;
     }
 
-    async saveColumnConfiguration() {
+    async saveSettings() {
         try {
+            const settings = {
+                theme: this.currentTheme,
+                columns: this.columns
+            };
+
             const response = await fetch('/api/schema/columns', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    columns: this.columns
-                })
+                body: JSON.stringify(settings)
             });
             
             if (response.ok) {
-                console.log('컬럼 설정이 자동으로 저장되었습니다.');
+                console.log('Settings saved successfully.');
             } else {
-                console.warn('컬럼 설정 저장에 실패했습니다.');
+                console.warn('Failed to save settings.');
             }
         } catch (error) {
-            console.error('컬럼 설정 저장 중 오류:', error);
+            console.error('Error saving settings:', error);
+        }
+    }
+
+    applyTheme(themeName, save = true) {
+        document.documentElement.setAttribute('data-theme', themeName);
+        this.currentTheme = themeName;
+        this.elements.themeSelector.value = themeName;
+        if (save) {
+            this.saveSettings();
         }
     }
 
     setupColumnDragAndDrop() {
-        const items = this.elements.columnVisibilityList.querySelectorAll('.column-visibility-item');
+        // This function is now intentionally left blank as we drag headers directly.
+    }
+
+    setupHeaderDragAndDrop() {
+        const headers = this.elements.logHeaderRow.querySelectorAll('.dynamic-column');
         let draggedElement = null;
-        let draggedIndex = null;
 
-        items.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                draggedElement = item;
-                draggedIndex = parseInt(item.dataset.columnIndex);
-                item.style.opacity = '0.5';
+        headers.forEach(header => {
+            header.addEventListener('dragstart', (e) => {
+                draggedElement = header;
                 e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', header.dataset.fieldName);
+                header.classList.add('dragging');
             });
 
-            item.addEventListener('dragend', (e) => {
-                item.style.opacity = '';
+            header.addEventListener('dragend', (e) => {
+                header.classList.remove('dragging');
+                headers.forEach(h => h.classList.remove('drag-over'));
                 draggedElement = null;
-                draggedIndex = null;
             });
 
-            item.addEventListener('dragover', (e) => {
+            header.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+                if (header !== draggedElement) {
+                    header.classList.add('drag-over');
+                }
             });
 
-            item.addEventListener('drop', (e) => {
+            header.addEventListener('dragleave', (e) => {
+                header.classList.remove('drag-over');
+            });
+
+            header.addEventListener('drop', (e) => {
                 e.preventDefault();
-                if (draggedElement && draggedElement !== item) {
-                    const targetIndex = parseInt(item.dataset.columnIndex);
-                    this.reorderColumns(draggedIndex, targetIndex);
+                header.classList.remove('drag-over');
+                if (header !== draggedElement) {
+                    const fromFieldName = e.dataTransfer.getData('text/plain');
+                    const toFieldName = header.dataset.fieldName;
+                    this.reorderColumnsByFieldName(fromFieldName, toFieldName);
                 }
             });
         });
     }
 
-    reorderColumns(fromIndex, toIndex) {
-        // Get the current orders
-        const fromColumn = this.columns[fromIndex];
-        const toColumn = this.columns[toIndex];
-        
-        if (!fromColumn || !toColumn) return;
+    reorderColumnsByFieldName(fromField, toField) {
+        const fromIndex = this.columns.findIndex(c => c.field_name === fromField);
+        const toIndex = this.columns.findIndex(c => c.field_name === toField);
 
-        const fromOrder = fromColumn.order || 0;
-        const toOrder = toColumn.order || 0;
+        if (fromIndex === -1 || toIndex === -1) return;
 
-        // Swap the orders
-        fromColumn.order = toOrder;
-        toColumn.order = fromOrder;
+        // Move the dragged item in the array
+        const [movedItem] = this.columns.splice(fromIndex, 1);
+        this.columns.splice(toIndex, 0, movedItem);
 
-        console.log(`컬럼 순서 변경: "${fromColumn.field_name}"와 "${toColumn.field_name}" 위치 교환`);
+        // Update the 'order' property for all columns to reflect the new sequence
+        this.columns.forEach((col, index) => {
+            col.order = index;
+        });
 
-        // Re-render the visibility list and headers
-        this.renderColumnVisibilityList();
+        console.log(`Columns reordered. New order saved.`);
+
+        // Re-render and save
         this.renderTableHeaders();
         this.updateDisplay();
-        
-        // Auto-save column configuration
-        this.saveColumnConfiguration();
+        this.saveSettings();
     }
 
 

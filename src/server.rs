@@ -72,6 +72,7 @@ impl AppState {
             if self.table_config.read().await.is_none() && schema.initialized {
                 let default_columns = schema.get_default_columns();
                 let config = TableConfig {
+                    theme: None,
                     columns: default_columns,
                 };
                 *self.table_config.write().await = Some(config);
@@ -172,13 +173,14 @@ impl WebServer {
         for _ in 0..MAX_PORT_ATTEMPTS {
             match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", current_port)).await {
                 Ok(_) => {
+                    /*
                     if current_port != port {
                         info!("Port {} is not available, will use port {} instead", port, current_port);
                     }
+                    */
                     return Ok(current_port);
                 }
                 Err(_) => {
-                    warn!("Port {} is not available, trying {}", current_port, current_port + 1);
                     if current_port == 65535 {
                         return Err(anyhow::anyhow!("No available ports found in range"));
                     }
@@ -197,9 +199,9 @@ impl WebServer {
         for _ in 0..MAX_PORT_ATTEMPTS {
             match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await {
                 Ok(_) => {
-                    if port != self.port {
-                        info!("Port {} is not available, using port {} instead", self.port, port);
-                    }
+                    // if port != self.port {
+                    //     info!("Port {} is not available, using port {} instead", self.port, port);
+                    // }
                     return Ok(port);
                 }
                 Err(_) => {
@@ -365,7 +367,7 @@ async fn get_logs_handler(
 
 async fn clear_logs_handler(State(state): State<AppState>) -> StatusCode {
     state.clear_logs().await;
-    info!("Logs cleared via API");
+    // info!("Logs cleared via API");
     StatusCode::OK
 }
 
@@ -452,15 +454,17 @@ async fn get_columns_handler(State(state): State<AppState>) -> Json<Option<Table
 }
 
 #[derive(Debug, Deserialize)]
-struct SetColumnsRequest {
+struct SetSettingsRequest {
+    theme: Option<String>,
     columns: Vec<ColumnConfig>,
 }
 
 async fn set_columns_handler(
     State(state): State<AppState>,
-    Json(request): Json<SetColumnsRequest>,
+    Json(request): Json<SetSettingsRequest>,
 ) -> Json<TableConfig> {
     let config = TableConfig {
+        theme: request.theme,
         columns: request.columns,
     };
     
@@ -468,12 +472,12 @@ async fn set_columns_handler(
     let settings_path = TableConfig::get_settings_path();
     if let Err(e) = config.save_to_file(&settings_path) {
         warn!("Failed to save table configuration: {}", e);
-    } else {
+    } /* else {
         info!("Saved table configuration to {:?}", settings_path);
-    }
+    } */
     
     *state.table_config.write().await = Some(config.clone());
-    info!("Updated table configuration with {} columns", config.columns.len());
+    // info!("Updated table configuration with {} columns", config.columns.len());
     
     Json(config)
 }

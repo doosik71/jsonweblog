@@ -17,6 +17,7 @@ pub struct ColumnConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableConfig {
+    pub theme: Option<String>,
     pub columns: Vec<ColumnConfig>,
 }
 

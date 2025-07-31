@@ -14,23 +14,20 @@ async fn main() -> anyhow::Result<()> {
         .with_line_number(true)
         .init();
 
-    // info!("Starting JsonWebLog server...");
-
     // Parse command line arguments
     let requested_port = std::env::args()
         .nth(1)
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(3000);
 
-    // info!("Requested port: {}", requested_port);
-    // info!("Send JSONL formatted logs to stdin to see them in the web interface");
-
     // Find an available port starting from the requested port
     let actual_port = WebServer::find_available_port_for_new(requested_port).await?;
     
+    /*
     if actual_port != requested_port {
         info!("Port {} was not available, using port {} instead", requested_port, actual_port);
     }
+    */
 
     // Create and start the server
     let server = WebServer::new(actual_port);
