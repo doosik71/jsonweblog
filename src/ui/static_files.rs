@@ -160,6 +160,13 @@ html[data-theme="dark"] {
     --level-warn: #F59E0B;
     --level-error: #EF4444;
     --level-fatal: #DC2626;
+
+    --bg-level-trace: rgba(107, 114, 128, 0.05); /* Subtle background for trace */
+    --bg-level-debug: rgba(59, 130, 246, 0.05); /* Subtle background for debug */
+    --bg-level-info: rgba(16, 185, 129, 0.05); /* Subtle background for info */
+    --bg-level-warn: rgba(245, 158, 11, 0.08);  /* Slightly more visible for warn */
+    --bg-level-error: rgba(239, 68, 68, 0.1);   /* More visible for error */
+    --bg-level-fatal: rgba(220, 38, 38, 0.15);  /* Most visible for fatal */
 }
 
 html[data-theme="light"] {
@@ -521,6 +528,14 @@ body {
 .level-warn { color: var(--level-warn); }
 .level-error { color: var(--level-error); }
 .level-fatal { color: var(--level-fatal); font-weight: bold; }
+
+/* Row background colors based on level */
+.virtual-log-row.row-level-trace { background-color: var(--bg-level-trace); }
+.virtual-log-row.row-level-debug { background-color: var(--bg-level-debug); }
+.virtual-log-row.row-level-info { background-color: var(--bg-level-info); }
+.virtual-log-row.row-level-warn { background-color: var(--bg-level-warn); }
+.virtual-log-row.row-level-error { background-color: var(--bg-level-error); }
+.virtual-log-row.row-level-fatal { background-color: var(--bg-level-fatal); }
 
 .log-time {
     font-family: 'Courier New', monospace;
@@ -1088,6 +1103,11 @@ const JS_APP: &str = r#"class JsonWebLogApp {
     createVirtualLogRow(log, virtualIndex) {
         const row = document.createElement('div');
         row.className = 'virtual-log-row';
+        
+        // Add level-specific class for background color
+        if (log.level) {
+            row.classList.add(`row-level-${log.level.toLowerCase()}`);
+        }
         
         // Initialize columns from first log if not already done
         if (this.columns.length === 0 && log.raw_fields) {
