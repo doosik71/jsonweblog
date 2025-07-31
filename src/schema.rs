@@ -19,6 +19,7 @@ pub struct ColumnConfig {
 pub struct TableConfig {
     pub theme: Option<String>,
     pub columns: Vec<ColumnConfig>,
+    pub auto_scroll: Option<bool>,
 }
 
 impl Schema {

@@ -74,6 +74,7 @@ impl AppState {
                 let config = TableConfig {
                     theme: None,
                     columns: default_columns,
+                    auto_scroll: Some(true), // Default to true for auto-scroll
                 };
                 *self.table_config.write().await = Some(config);
             }
@@ -457,6 +458,7 @@ async fn get_columns_handler(State(state): State<AppState>) -> Json<Option<Table
 struct SetSettingsRequest {
     theme: Option<String>,
     columns: Vec<ColumnConfig>,
+    auto_scroll: Option<bool>,
 }
 
 async fn set_columns_handler(
@@ -466,6 +468,7 @@ async fn set_columns_handler(
     let config = TableConfig {
         theme: request.theme,
         columns: request.columns,
+        auto_scroll: request.auto_scroll,
     };
     
     // Save to file

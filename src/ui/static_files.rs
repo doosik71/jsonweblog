@@ -56,6 +56,10 @@ const HTML_INDEX: &str = r#"<!DOCTYPE html>
                     </select>
                 </div>
                 <button id="columns-btn" class="btn btn-secondary">컬럼 설정</button>
+                <div class="auto-scroll-control">
+                    <input type="checkbox" id="auto-scroll-checkbox">
+                    <label for="auto-scroll-checkbox">자동 스크롤</label>
+                </div>
                 <button id="clear-btn" class="btn btn-danger">지우기</button>
             </div>
         </header>
@@ -782,6 +786,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.maxReconnectAttempts = 5;
         this.scrollUpdateQueued = false; // Flag for requestAnimationFrame
         this.currentTheme = 'dark'; // Default theme
+        this.autoScrollEnabled = true; // Default auto-scroll to true
         
         // Column configuration
         this.columns = []; // Simple list of column configs from server
@@ -816,6 +821,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             clearBtn: document.getElementById('clear-btn'),
             columnsBtn: document.getElementById('columns-btn'),
             themeSelector: document.getElementById('theme-selector'),
+            autoScrollCheckbox: document.getElementById('auto-scroll-checkbox'),
             columnConfigPanel: document.getElementById('column-config-panel'),
             closeConfigBtn: document.getElementById('close-config-btn'),
             columnVisibilityList: document.getElementById('column-visibility-list'),
@@ -840,6 +846,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.elements.clearBtn.addEventListener('click', () => this.clearLogs());
         this.elements.columnsBtn.addEventListener('click', () => this.showColumnConfig());
         this.elements.themeSelector.addEventListener('change', (e) => this.applyTheme(e.target.value));
+        this.elements.autoScrollCheckbox.addEventListener('change', (e) => this.toggleAutoScroll(e.target.checked));
         
         // Column configuration event listeners
         this.elements.closeConfigBtn.addEventListener('click', () => this.hideColumnConfig());
@@ -1042,7 +1049,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.renderVisibleRows();
         
         // Auto-scroll to bottom for new logs only if user was already at bottom
-        if (wasAtBottom && this.filteredLogs.length > 0) {
+        if (this.autoScrollEnabled && wasAtBottom && this.filteredLogs.length > 0) {
             this.scrollToBottom();
         }
     }
@@ -1094,6 +1101,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
     }
 
     scrollToBottom() {
+        if (!this.autoScrollEnabled) return; // Only scroll if auto-scroll is enabled
         const maxScroll = this.virtualScroll.contentHeight - this.virtualScroll.containerHeight;
         if (maxScroll > 0) {
             this.elements.virtualScrollContainer.scrollTop = maxScroll;
@@ -1231,6 +1239,11 @@ const JS_APP: &str = r#"class JsonWebLogApp {
                 }
                 if (tableConfig.theme) {
                     this.applyTheme(tableConfig.theme, false); // Apply theme without saving
+                }
+                // Initialize auto-scroll setting
+                if (typeof tableConfig.auto_scroll !== 'undefined') {
+                    this.autoScrollEnabled = tableConfig.auto_scroll;
+                    this.elements.autoScrollCheckbox.checked = tableConfig.auto_scroll;
                 }
             }
         } catch (error) {
@@ -1409,7 +1422,8 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         try {
             const settings = {
                 theme: this.currentTheme,
-                columns: this.columns
+                columns: this.columns,
+                auto_scroll: this.autoScrollEnabled
             };
 
             const response = await fetch('/api/schema/columns', {
@@ -1436,6 +1450,14 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.elements.themeSelector.value = themeName;
         if (save) {
             this.saveSettings();
+        }
+    }
+
+    toggleAutoScroll(enabled) {
+        this.autoScrollEnabled = enabled;
+        this.saveSettings();
+        if (enabled) {
+            this.scrollToBottom(); // Scroll to bottom immediately if enabled
         }
     }
 
