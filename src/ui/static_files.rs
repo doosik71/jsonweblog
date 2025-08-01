@@ -400,7 +400,6 @@ body {
     overflow: hidden;
 }
 
-
 .log-table-container {
     flex: 1;
     display: flex;
@@ -450,7 +449,6 @@ body {
 .virtual-log-row:hover {
     background-color: var(--bg-row-hover);
 }
-
 
 .log-table-header {
     background-color: var(--bg-header);
@@ -811,6 +809,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.setupVirtualScrolling();
         this.connectWebSocket();
         this.initializeSettings();
+        this.throttledApplyFilters = this.throttle(this.applyFilters.bind(this), 50, { 'maxWait': 500 });
     }
 
     initializeElements() {
@@ -902,11 +901,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.virtualScroll.visibleRows = Math.ceil(this.virtualScroll.containerHeight / this.virtualScroll.rowHeight) + 2; // +2 for buffer
         this.virtualScroll.initialized = true;
         
-        console.log('=== DIMENSIONS CALCULATED ===');
-        console.log('Container height:', this.virtualScroll.containerHeight + 'px');
-        console.log('Measured Row height:', this.virtualScroll.rowHeight + 'px'); // Log the measured height
-        console.log('Calculated visible rows:', this.virtualScroll.visibleRows);
-        console.log('=============================');
+        
     }
 
     requestScrollUpdate() {
@@ -924,10 +919,17 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         
         this.updateVisibleRange();
         this.renderVisibleRows();
+
+        // If auto-scroll was enabled and user scrolled up, disable it and update UI
+        if (this.autoScrollEnabled && !this.isAtBottom()) {
+            this.autoScrollEnabled = false;
+            this.elements.autoScrollCheckbox.checked = false;
+            this.saveSettings(); // Persist the change
+        }
     }
 
     handleResize() {
-        this.calculateContainerDimensions();
+        this.calculateDimensions();
         this.updateVisibleRange();
         this.renderVisibleRows();
     }
@@ -963,7 +965,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         // 4. Apply the transform to the viewport
         this.elements.virtualScrollViewport.style.transform = `translateY(${viewportOffset}px)`;
         
-        console.log(`[vScroll] Range: ${startIndex}-${endIndex}, Viewport Offset: ${viewportOffset}px`);
+        
     }
 
     connectWebSocket() {
@@ -1000,11 +1002,9 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-            console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
             setTimeout(() => this.connectWebSocket(), delay);
         }
     }
-
 
     addLogEntry(logEntry) {
         this.logs.push(logEntry);
@@ -1014,7 +1014,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             this.logs = this.logs.slice(-100000);
         }
         
-        this.applyFilters();
+        this.throttledApplyFilters();
     }
 
     updateFilter(filterType, value) {
@@ -1023,6 +1023,13 @@ const JS_APP: &str = r#"class JsonWebLogApp {
     }
 
     applyFilters() {
+        // If no filter is applied, just use the raw logs
+        if (!this.filters.column && !this.filters.value) {
+            this.filteredLogs = this.logs.slice(); // Create a shallow copy
+            this.updateDisplay();
+            return;
+        }
+
         this.filteredLogs = this.logs.filter(log => {
             // Column-based filter
             if (this.filters.column && this.filters.value) {
@@ -1094,10 +1101,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         const firstVisibleIndex = Math.floor(scrollTop / rowHeight);
         const lastVisibleIndex = Math.min(this.filteredLogs.length - 1, firstVisibleIndex + Math.ceil(containerHeight / rowHeight) - 1);
         
-        console.log('=== RENDER DEBUG ===');
-        console.log(`렌더링된 행: ${actualRowsRendered}개 (${firstRenderedIndex}번부터 ${lastRenderedIndex}번까지)`);
-        console.log(`실제 화면에 보이는 메시지: ${firstVisibleIndex + 1}번부터 ${lastVisibleIndex + 1}번까지`);
-        console.log('====================');
+        
     }
 
     scrollToBottom() {
@@ -1140,10 +1144,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             row.innerHTML = html;
         }
         
-        // Debug: log the line number vs array index for first few rows
-        if (virtualIndex < 5 || virtualIndex % 100 === 0) {
-            console.log(`Row ${virtualIndex}: log.line=${log.line}, arrayIndex=${virtualIndex + 1}`);
-        }
+        
         
         return row;
     }
@@ -1169,7 +1170,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         // Render headers immediately
         this.renderTableHeaders();
         
-        console.log('Initialized columns from first log:', this.columns);
+        
     }
 
     getFieldValue(log, fieldName) {
@@ -1202,7 +1203,6 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             return this.escapeHtml(String(value));
         }
     }
-
 
     clearFilters() {
         this.filters = {
@@ -1398,7 +1398,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         this.renderTableHeaders();
         this.updateDisplay(); // Re-render rows with new widths
         
-        console.log(`컬럼 "${this.columns[this.resizing.columnIndex].field_name}" 폭 변경: ${newWidth}px`);
+        
     }
 
     endColumnResize(e) {
@@ -1435,9 +1435,7 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             });
             
             if (response.ok) {
-                console.log('Settings saved successfully.');
             } else {
-                console.warn('Failed to save settings.');
             }
         } catch (error) {
             console.error('Error saving settings:', error);
@@ -1521,14 +1519,13 @@ const JS_APP: &str = r#"class JsonWebLogApp {
             col.order = index;
         });
 
-        console.log(`Columns reordered. New order saved.`);
+        
 
         // Re-render and save
         this.renderTableHeaders();
         this.updateDisplay();
         this.saveSettings();
     }
-
 
     debounce(func, wait) {
         let timeout;
@@ -1542,7 +1539,78 @@ const JS_APP: &str = r#"class JsonWebLogApp {
         };
     }
 
-    
+    throttle(func, wait, options) {
+        let timeoutId;
+        let lastArgs;
+        let lastThis;
+        let lastResult;
+        let lastCallTime = 0;
+        let lastInvokeTime = 0;
+        let leading = true;
+        let trailing = true;
+        let maxWait = null;
+
+        if (typeof options === 'object') {
+            leading = 'leading' in options ? !!options.leading : leading;
+            trailing = 'trailing' in options ? !!options.trailing : trailing;
+            maxWait = 'maxWait' in options ? Math.max(wait, options.maxWait) : maxWait;
+        }
+
+        const invokeFunc = (time) => {
+            lastResult = func.apply(lastThis, lastArgs);
+            lastInvokeTime = time;
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        };
+
+        const leadingEdge = (time) => {
+            lastInvokeTime = time;
+            timeoutId = setTimeout(timerExpired, wait);
+            return func.apply(lastThis, lastArgs);
+        };
+
+        const timerExpired = () => {
+            const time = Date.now();
+            if (trailing && lastArgs && (lastCallTime - lastInvokeTime >= wait)) {
+                invokeFunc(time);
+            } else {
+                timeoutId = setTimeout(timerExpired, lastInvokeTime + wait - time);
+            }
+        };
+
+        const throttled = function(...args) {
+            const time = Date.now();
+            lastArgs = args;
+            lastThis = this;
+
+            const isInvoking = (time - lastCallTime >= wait) || (maxWait && (time - lastInvokeTime >= maxWait));
+            lastCallTime = time;
+
+            if (isInvoking) {
+                if (timeoutId === null && leading) {
+                    return leadingEdge(time);
+                }
+                if (maxWait && (time - lastInvokeTime >= maxWait)) {
+                    invokeFunc(time);
+                }
+            }
+
+            if (timeoutId === null) {
+                timeoutId = setTimeout(timerExpired, wait);
+            }
+
+            return lastResult;
+        };
+
+        throttled.cancel = () => {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+            lastCallTime = 0;
+            lastInvokeTime = 0;
+        };
+
+        return throttled;
+    }
 
     escapeHtml(text) {
         const map = {

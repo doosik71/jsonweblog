@@ -17,7 +17,7 @@ use std::sync::{
 };
 use tokio::{
     sync::{broadcast, RwLock},
-    // time::{interval, Duration},
+    time::{interval, Duration},
 };
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
@@ -26,7 +26,7 @@ use tracing::{error, info, warn};
 #[derive(Clone)]
 pub struct AppState {
     pub logs: Arc<RwLock<Vec<LogEntry>>>,
-    pub log_tx: broadcast::Sender<LogEntry>,
+    pub log_tx: broadcast::Sender<String>,
     pub connection_count: Arc<AtomicU64>,
     pub schema: Arc<RwLock<Schema>>,
     pub table_config: Arc<RwLock<Option<TableConfig>>>,
@@ -34,7 +34,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let (log_tx, _) = broadcast::channel(1000);
+        let (log_tx, _) = broadcast::channel::<String>(1000);
         
         // Try to load existing table configuration
         let settings_path = TableConfig::get_settings_path();
@@ -51,38 +51,54 @@ impl AppState {
         }
     }
 
-    pub async fn add_log(&self, entry: LogEntry) {
+    pub async fn add_logs_batch(&self, entries: Vec<LogEntry>) {
+        if entries.is_empty() {
+            return;
+        }
+
+        // Acquire write lock once for the entire batch
         {
             let mut logs = self.logs.write().await;
-            logs.push(entry.clone());
-            
+            logs.extend(entries.iter().cloned()); // Add all new logs
+
             // Keep only last 100,000 entries to prevent memory issues
             if logs.len() > 100_000 {
                 let len = logs.len();
                 logs.drain(0..len - 100_000);
             }
         }
-        
-        // Initialize schema from first entry
+
+        // Initialize schema from the first entry of the batch if not already initialized
+        // This assumes that schema initialization only needs to happen once based on any log entry
         {
             let mut schema = self.schema.write().await;
-            schema.initialize_from_first_entry(&entry.raw_fields);
-            
-            // Auto-generate table config if none exists
-            if self.table_config.read().await.is_none() && schema.initialized {
-                let default_columns = schema.get_default_columns();
-                let config = TableConfig {
-                    theme: None,
-                    columns: default_columns,
-                    auto_scroll: Some(true), // Default to true for auto-scroll
-                };
-                *self.table_config.write().await = Some(config);
+            if !schema.initialized {
+                if let Some(first_entry) = entries.first() {
+                    schema.initialize_from_first_entry(&first_entry.raw_fields);
+
+                    // Auto-generate table config if none exists
+                    if self.table_config.read().await.is_none() && schema.initialized {
+                        let default_columns = schema.get_default_columns();
+                        let config = TableConfig {
+                            theme: None,
+                            columns: default_columns,
+                            auto_scroll: Some(true), // Default to true for auto-scroll
+                        };
+                        *self.table_config.write().await = Some(config);
+                    }
+                }
             }
         }
-        
-        // Broadcast to all connected clients
-        if let Err(_e) = self.log_tx.send(entry) {
-            // warn!("Failed to broadcast log entry: {}", e);
+
+        // Broadcast each log entry individually to all connected clients
+        for entry in entries {
+            if let Ok(json_string) = serde_json::to_string(&entry) {
+                if let Err(_e) = self.log_tx.send(json_string) {
+                    // warn!("Failed to broadcast log entry: {}", e);
+                    // If a send fails, it usually means no receivers are listening or the channel is full
+                    // For broadcast, it means no active subscribers, so we can just continue
+                }
+            }
         }
     }
 
@@ -247,15 +263,43 @@ impl WebServer {
         let mut parser = JsonLogParser::new();
         let mut stream = parser.parse_stdin().await;
         
+        const BATCH_SIZE: usize = 1000;
+        const FLUSH_INTERVAL_MS: u64 = 100;
+
+        let mut log_buffer: Vec<LogEntry> = Vec::with_capacity(BATCH_SIZE);
+        let mut interval = interval(Duration::from_millis(FLUSH_INTERVAL_MS));
+        interval.tick().await; // Initial tick to avoid immediate flush
+
         // info!("Started stdin parser task");
         
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(entry) => {
-                    state.add_log(entry).await;
+        loop {
+            tokio::select! {
+                // Prefer receiving a new log entry
+                result = stream.next() => {
+                    match result {
+                        Some(Ok(entry)) => {
+                            log_buffer.push(entry);
+                            if log_buffer.len() >= BATCH_SIZE {
+                                state.add_logs_batch(std::mem::take(&mut log_buffer)).await;
+                            }
+                        }
+                        Some(Err(e)) => {
+                            warn!("Failed to parse log line: {}", e);
+                        }
+                        None => {
+                            // Stdin closed, flush any remaining logs and exit
+                            if !log_buffer.is_empty() {
+                                state.add_logs_batch(std::mem::take(&mut log_buffer)).await;
+                            }
+                            break;
+                        }
+                    }
                 }
-                Err(e) => {
-                    warn!("Failed to parse log line: {}", e);
+                // Flush periodically if no new logs are coming in quickly enough
+                _ = interval.tick() => {
+                    if !log_buffer.is_empty() {
+                        state.add_logs_batch(std::mem::take(&mut log_buffer)).await;
+                    }
                 }
             }
         }
@@ -405,19 +449,17 @@ async fn websocket_connection(socket: WebSocket, state: AppState) {
         drop(logs);
         
         for log_entry in recent_logs {
-            if let Ok(json) = serde_json::to_string(&log_entry) {
-                if sender.send(Message::Text(json)).await.is_err() {
+            if let Ok(json_string) = serde_json::to_string(&log_entry) {
+                if sender.send(Message::Text(json_string)).await.is_err() {
                     break;
                 }
             }
         }
         
         // Forward new log entries
-        while let Ok(log_entry) = log_rx.recv().await {
-            if let Ok(json) = serde_json::to_string(&log_entry) {
-                if sender.send(Message::Text(json)).await.is_err() {
-                    break;
-                }
+        while let Ok(json_string) = log_rx.recv().await {
+            if sender.send(Message::Text(json_string)).await.is_err() {
+                break;
             }
         }
     });
