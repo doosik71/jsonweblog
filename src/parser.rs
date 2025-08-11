@@ -35,13 +35,16 @@ impl JsonLogParser {
             return Err(anyhow!("Empty line"));
         }
 
-        let json_value: Value = serde_json::from_str(line)
-            .map_err(|e| anyhow!("Failed to parse JSON: {}", e))?;
-
-        if let Value::Object(obj) = json_value {
-            self.extract_log_entry(obj, line_number)
-        } else {
-            Err(anyhow!("Expected JSON object"))
+        match serde_json::from_str(line) {
+            Ok(Value::Object(obj)) => self.extract_log_entry(obj, line_number),
+            Ok(_) => {
+                println!("{}", line); // Not a JSON object
+                Err(anyhow!("Expected JSON object but got other JSON type"))
+            }
+            Err(e) => {
+                println!("{}", line); // Not valid JSON
+                Err(anyhow!("Failed to parse JSON: {}", e))
+            }
         }
     }
 
