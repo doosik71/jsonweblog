@@ -165,12 +165,12 @@ html[data-theme="dark"] {
     --level-error: #EF4444;
     --level-fatal: #DC2626;
 
-    --bg-level-trace: rgba(107, 114, 128, 0.05); /* Subtle background for trace */
-    --bg-level-debug: rgba(59, 130, 246, 0.05); /* Subtle background for debug */
-    --bg-level-info: rgba(16, 185, 129, 0.05); /* Subtle background for info */
-    --bg-level-warn: rgba(245, 158, 11, 0.08);  /* Slightly more visible for warn */
-    --bg-level-error: rgba(239, 68, 68, 0.1);   /* More visible for error */
-    --bg-level-fatal: rgba(220, 38, 38, 0.15);  /* Most visible for fatal */
+    --bg-level-trace: rgba(0, 0, 255, 0.1);
+    --bg-level-debug: rgba(0, 255, 0, 0.1);
+    --bg-level-info: rgba(0, 255, 255, 0.1);
+    --bg-level-warn: rgba(255, 255, 0, 0.1);
+    --bg-level-error: rgba(255, 0, 255, 0.1);
+    --bg-level-fatal: rgba(255, 0, 0, 0.1);
 }
 
 html[data-theme="light"] {
