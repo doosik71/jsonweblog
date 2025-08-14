@@ -16,7 +16,7 @@ use std::sync::{
     Arc,
 };
 use tokio::{
-    sync::{broadcast, RwLock},
+    sync::{broadcast, oneshot, RwLock},
     time::{interval, Duration},
 };
 use tower::ServiceBuilder;
@@ -159,34 +159,31 @@ impl WebServer {
 
     pub async fn start(&self) -> anyhow::Result<()> {
         let app = self.create_router();
-        
-        // Try to find an available port starting from the requested port
-        let actual_port = self.find_available_port().await?;
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", actual_port)).await?;
-        // info!("Web server listening on http://0.0.0.0:{}", actual_port);
-        info!("Web interface available at http://localhost:{}", actual_port);
-        
+
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.port)).await?;
+        info!("Web interface available at http://localhost:{}", self.port);
+
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+
         // Start stdin parser task
         let parser_state = self.state.clone();
         tokio::spawn(async move {
-            Self::stdin_parser_task(parser_state).await;
+            Self::stdin_parser_task(parser_state, shutdown_tx).await;
         });
 
-        // // Start stats task
-        // let stats_state = self.state.clone();
-        // tokio::spawn(async move {
-        //     Self::stats_task(stats_state).await;
-        // });
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                shutdown_rx.await.ok();
+            })
+            .await?;
 
-        axum::serve(listener, app).await?;
-        
         Ok(())
     }
 
     pub async fn find_available_port_for_new(port: u16) -> anyhow::Result<u16> {
         let mut current_port = port;
         const MAX_PORT_ATTEMPTS: u16 = 100;
-        
+
         for _ in 0..MAX_PORT_ATTEMPTS {
             match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", current_port)).await {
                 Ok(_) => {
@@ -205,32 +202,7 @@ impl WebServer {
                 }
             }
         }
-        
-        Err(anyhow::anyhow!("Could not find an available port after {} attempts", MAX_PORT_ATTEMPTS))
-    }
 
-    async fn find_available_port(&self) -> anyhow::Result<u16> {
-        let mut port = self.port;
-        const MAX_PORT_ATTEMPTS: u16 = 100;
-        
-        for _ in 0..MAX_PORT_ATTEMPTS {
-            match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await {
-                Ok(_) => {
-                    // if port != self.port {
-                    //     info!("Port {} is not available, using port {} instead", self.port, port);
-                    // }
-                    return Ok(port);
-                }
-                Err(_) => {
-                    warn!("Port {} is not available, trying {}", port, port + 1);
-                    if port == 65535 {
-                        return Err(anyhow::anyhow!("No available ports found in range"));
-                    }
-                    port += 1;
-                }
-            }
-        }
-        
         Err(anyhow::anyhow!("Could not find an available port after {} attempts", MAX_PORT_ATTEMPTS))
     }
 
@@ -259,7 +231,7 @@ impl WebServer {
             .with_state(self.state.clone())
     }
 
-    async fn stdin_parser_task(state: AppState) {
+    async fn stdin_parser_task(state: AppState, shutdown_tx: tokio::sync::oneshot::Sender<()>) {
         let mut parser = JsonLogParser::new();
         let mut stream = parser.parse_stdin().await;
         
@@ -283,8 +255,8 @@ impl WebServer {
                                 state.add_logs_batch(std::mem::take(&mut log_buffer)).await;
                             }
                         }
-                        Some(Err(e)) => {
-                            warn!("Failed to parse log line: {}", e);
+                        Some(Err(_)) => {
+                            // Ignore parsing errors.
                         }
                         None => {
                             // Stdin closed, flush any remaining logs and exit
@@ -303,22 +275,11 @@ impl WebServer {
                 }
             }
         }
-        
-        // info!("Stdin parser task ended");
-    }
 
-    // async fn stats_task(state: AppState) {
-    //     let mut interval = interval(Duration::from_secs(30));
-        
-    //     loop {
-    //         interval.tick().await;
-            
-    //         let _log_count = state.logs.read().await.len();
-    //         let _connection_count = state.connection_count.load(Ordering::Relaxed);
-            
-    //         // info!("Stats: {} logs, {} connections", log_count, connection_count);
-    //     }
-    // }
+        if shutdown_tx.send(()).is_err() {
+            error!("Failed to send shutdown signal.");
+        }
+    }
 }
 
 // Static file handlers
